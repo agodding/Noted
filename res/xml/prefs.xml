@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" >
+
+    <PreferenceCategory android:title="Backup" android:key="backup">
+        <CheckBoxPreference android:summaryOff="Sync with Google Drive" android:summaryOn="Notes synched with Google Drive" android:title="Sync with Google Drive" android:key="@string/syncPref"/>
+        
+    </PreferenceCategory>
+
+</PreferenceScreen>

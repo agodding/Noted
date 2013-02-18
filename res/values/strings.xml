@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="hello">Hello World, MyNotesICSActivity!</string>
+    <string name="app_name">Noted</string>
+    <string name="search_hint">Note title/content</string>
+    <string name="syncPref">sync_pref</string>
+
+</resources>
