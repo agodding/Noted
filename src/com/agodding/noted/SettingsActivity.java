@@ -47,6 +47,7 @@ public class SettingsActivity extends PreferenceActivity {
 	};
 	private CheckBoxPreference syncPref;
 	private ProgressDialog dialog;
+	public static final String PREFERENCES_NAME = "MyNotes";
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {

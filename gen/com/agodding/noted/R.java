@@ -53,6 +53,7 @@ public final class R {
         public static final int hello=0x7f050000;
         public static final int search_hint=0x7f050002;
         public static final int syncPref=0x7f050003;
+        public static final int wifiPref=0x7f050004;
     }
     public static final class xml {
         public static final int prefs=0x7f040000;

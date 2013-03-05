@@ -33,7 +33,8 @@ public class DriveSyncService extends Service {
 
 	private static final String MIME_TYPE_TEXT_PLAIN = "text/plain";
 	private static final String PREFERENCE_MYNOTES_FOLDER_ID = "mynotes_folder_id";
-	private static final String PREFERENCES_NAME = "MyNotes";
+	private static final String PREFERENCE_AUTH_TOKEN= "auth_token";
+	private static final String DRIVE_FOLDER_NAME = "Noted";
 	public static String EXTRA_ACCOUNT_NAME = "account_name";
 	private static final String DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 	private static final String DRIVE_FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
@@ -54,13 +55,20 @@ public class DriveSyncService extends Service {
 	}
 
 	public void getAuthToken() {
+		authToken = getSharedPreferences(SettingsActivity.PREFERENCES_NAME, MODE_PRIVATE).getString(PREFERENCE_AUTH_TOKEN, null);
+		if (authToken != null) {
+			handleAuthToken();
+			return;
+		}
+		
 		new Thread(new Runnable() {
 			public void run() {
 				try {
 					authToken =
 							GoogleAuthUtil.getToken(DriveSyncService.this, accountName, "oauth2:"
 									+ DRIVE_SCOPE);
-					handleAuthToken(authToken);
+					getSharedPreferences(SettingsActivity.PREFERENCES_NAME, MODE_PRIVATE).edit().putString(PREFERENCE_AUTH_TOKEN, authToken).commit();
+					handleAuthToken();
 				} catch (IOException e) {
 					e.printStackTrace();
 				} catch (UserRecoverableAuthException e) {
@@ -72,6 +80,8 @@ public class DriveSyncService extends Service {
 					e.printStackTrace();
 				} catch (GoogleAuthException e) {
 					e.printStackTrace();
+				} finally {
+					stopSelf();
 				}
 			}
 		}).start();
@@ -82,7 +92,7 @@ public class DriveSyncService extends Service {
 		getAuthToken();
 	}
 
-	private void handleAuthToken(String authToken) {
+	private void handleAuthToken() {
 		LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(new Intent(SettingsActivity.SYNC_SUCCESS));
 		syncNotes();
 	}
@@ -97,10 +107,8 @@ public class DriveSyncService extends Service {
 						httpRequest.setInterceptor(
 								new HttpExecuteInterceptor() {
 									@Override
-									public void intercept(HttpRequest request)
-											throws IOException {
-										request.getHeaders().setAuthorization(
-												"Bearer " + authToken);
+									public void intercept(HttpRequest request) throws IOException {
+										request.getHeaders().setAuthorization("Bearer " + authToken);
 									}
 								});
 					}
@@ -108,29 +116,33 @@ public class DriveSyncService extends Service {
 	}
 
 	private void syncNotes() {
-		Drive driveService = getDriveService();
-		try {
-			String folderID = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE).getString(PREFERENCE_MYNOTES_FOLDER_ID, null);
-			if (folderID == null) {
-				File driveFolder = findDriveFolderByName(driveService);
-				if (driveFolder == null) {
-					createMyNotesFolder(driveService);
-					addAllLocalFilesToDriveFolder(driveService);
-				} else {
-					//TODO: reinstalling, so download all remote files and persist them locally
+		new Thread(new Runnable() {
+			public void run() {
+				Drive driveService = getDriveService();
+				try {
+					String folderID = getSharedPreferences(SettingsActivity.PREFERENCES_NAME, MODE_PRIVATE).getString(PREFERENCE_MYNOTES_FOLDER_ID, null);
+					if (folderID == null) {
+						File driveFolder = findDriveFolderByName(driveService);
+						if (driveFolder == null) {
+							createMyNotesFolder(driveService);
+							addAllLocalFilesToDriveFolder(driveService);
+						} else {
+							//TODO: reinstalling, so download all remote files and persist them locally
+						}
+					} else {
+						File driveFolder = driveService.files().get(folderID).execute();
+						reconcileFiles(driveFolder, driveService);
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
 				}
-			} else {
-				File driveFolder = driveService.files().get(folderID).execute();
-				reconcileFiles(driveFolder, driveService);
+				stopSelf();
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		stopSelf();
+		}).start();
 	}
 	
 	private File findDriveFolderByName(Drive driveService) throws IOException {
-		FileList fileList = driveService.files().list().setQ("title = 'MyNotes'").execute();
+		FileList fileList = driveService.files().list().setQ("title = '" + DRIVE_FOLDER_NAME + "'").execute();
 		if (fileList.getItems().size() == 0){
 			return null;
 		} else {
@@ -142,9 +154,9 @@ public class DriveSyncService extends Service {
 	private void createMyNotesFolder(Drive driveService) throws IOException {
 		File aFile = new File();
 		aFile.setMimeType(DRIVE_FOLDER_MIME_TYPE);
-		aFile.setTitle("MyNotes");
+		aFile.setTitle(DRIVE_FOLDER_NAME);
 		File driveFolder = driveService.files().insert(aFile).execute();
-		SharedPreferences prefs = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE);
+		SharedPreferences prefs = getSharedPreferences(SettingsActivity.PREFERENCES_NAME, MODE_PRIVATE);
 		prefs.edit().putString(PREFERENCE_MYNOTES_FOLDER_ID, driveFolder.getId()).commit();
 	}
 	
@@ -162,13 +174,13 @@ public class DriveSyncService extends Service {
 		newFile.setMimeType(MIME_TYPE_TEXT_PLAIN);
 		newFile.setDescription(Long.toString(aNote.getId()));
 		
-		String folderID = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE).getString(PREFERENCE_MYNOTES_FOLDER_ID, null);
+		String folderID = getSharedPreferences(SettingsActivity.PREFERENCES_NAME, MODE_PRIVATE).getString(PREFERENCE_MYNOTES_FOLDER_ID, null);
 		newFile.setParents(Arrays.asList(new ParentReference().setId(folderID)));
 		driveService.files().insert(newFile, ByteArrayContent.fromString(MIME_TYPE_TEXT_PLAIN, aNote.getBody())).execute();
 	}
 	
 	private void reconcileFiles(File driveFolder, Drive driveService) throws IOException {
-		String folderID = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE).getString(PREFERENCE_MYNOTES_FOLDER_ID, null);
+		String folderID = getSharedPreferences(SettingsActivity.PREFERENCES_NAME, MODE_PRIVATE).getString(PREFERENCE_MYNOTES_FOLDER_ID, null);
 		FileList fileList = driveService.files().list().setQ("'" + folderID + "' in parents").execute();
 		List<File> remoteFiles = fileList.getItems();
 		HashMap<Long, File> remoteFileHash = new HashMap<Long, File>();

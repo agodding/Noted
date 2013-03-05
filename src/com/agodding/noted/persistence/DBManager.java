@@ -4,11 +4,19 @@ import java.util.ArrayList;
 
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.preference.PreferenceManager;
 
+import com.agodding.noted.R;
+import com.agodding.noted.SettingsActivity;
 import com.agodding.noted.model.Note;
+import com.agodding.noted.sync.DriveSyncService;
 
 public class DBManager extends SQLiteOpenHelper {
 
@@ -31,8 +39,8 @@ public class DBManager extends SQLiteOpenHelper {
                 COLUMN_PASSWORD + " text);";
     
     private static DBManager singleton;
-    
 	private SQLiteDatabase db;
+	private Context context;
 	
 	public static DBManager getInstance(Context context) {
 		if (singleton == null) {
@@ -45,6 +53,7 @@ public class DBManager extends SQLiteOpenHelper {
     private DBManager(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
         db = getWritableDatabase();
+        this.context = context.getApplicationContext();
     }
 	
 	@Override
@@ -69,6 +78,7 @@ public class DBManager extends SQLiteOpenHelper {
 		note.setTimestamp(System.currentTimeMillis());
 	    populateValues(note, values);
 	    note.setId(db.insert(NOTE_TABLE_NAME, null, values));
+	    handleSync();
 	}
 	
 	public Note retreiveNote(long id) {
@@ -100,10 +110,12 @@ public class DBManager extends SQLiteOpenHelper {
 		values.put(COLUMN_ID, note.getId());
 	    populateValues(note, values);
 	    db.update(NOTE_TABLE_NAME, values, COLUMN_ID + " = " + String.valueOf(note.getId()), null);
+	    handleSync();
 	}
 	
 	public void deleteNote(Note note) {
 		db.delete(NOTE_TABLE_NAME, COLUMN_ID + " = " + String.valueOf(note.getId()), null);
+		handleSync();
 	}
 	
 	public ArrayList<Note> queryNotes(String queryString) {
@@ -135,7 +147,26 @@ public class DBManager extends SQLiteOpenHelper {
 		aNote.setPassword(cursor.getString(4));
 		return aNote;
 	}
-
+	
+	private void handleSync() {
+		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+		if (prefs.getBoolean(context.getString(R.string.syncPref), false)) {
+			if (prefs.getBoolean(context.getString(R.string.wifiPref), false) && !wifiConnected()) {
+				return;
+			}
+			Intent intent = new Intent(context, DriveSyncService.class);
+			context.startService(intent);
+		}
+	}
+	
+	private boolean wifiConnected() {
+		ConnectivityManager cm = (ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);
+		NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+		if (activeNetwork != null && activeNetwork.getType() == ConnectivityManager.TYPE_WIFI) {
+			return true;
+		}
+		return false;
+	}
 }
 
 

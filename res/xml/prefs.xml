@@ -3,6 +3,7 @@
 
     <PreferenceCategory android:title="Backup" android:key="backup">
         <CheckBoxPreference android:summaryOff="Sync with Google Drive" android:summaryOn="Notes synched with Google Drive" android:title="Sync with Google Drive" android:key="@string/syncPref"/>
+        <CheckBoxPreference android:key="@string/wifiPref" android:title="Only sync when on Wifi" android:dependency="@string/syncPref"/>
         
     </PreferenceCategory>
 
