@@ -14,7 +14,6 @@ import android.net.NetworkInfo;
 import android.preference.PreferenceManager;
 
 import com.agodding.noted.R;
-import com.agodding.noted.SettingsActivity;
 import com.agodding.noted.model.Note;
 import com.agodding.noted.sync.DriveSyncService;
 
@@ -160,7 +159,7 @@ public class DBManager extends SQLiteOpenHelper {
 	}
 	
 	private boolean wifiConnected() {
-		ConnectivityManager cm = (ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);
+		ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
 		NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
 		if (activeNetwork != null && activeNetwork.getType() == ConnectivityManager.TYPE_WIFI) {
 			return true;
@@ -168,5 +167,3 @@ public class DBManager extends SQLiteOpenHelper {
 		return false;
 	}
 }
-
-

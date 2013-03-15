@@ -1,4 +1,4 @@
-package com.agodding.noteds.view;
+package com.agodding.noted.view;
 
 import java.util.ArrayList;
 
@@ -69,7 +69,7 @@ public class NoteListAdapter extends BaseAdapter {
 			returnViewLayout.addView(checkbox, 0);
 			checkbox.animate().alpha(1);
 			
-			noteNameText.animate().x(noteNameText.getX() + 65);
+			noteNameText.animate().x(noteNameText.getX() + 80);
 			noteNameText.animate().start();
 		}
 		if (position == getCount()-1) {

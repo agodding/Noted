@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map.Entry;
+import java.util.Set;
 
 import android.app.Service;
 import android.content.Intent;
@@ -202,11 +204,20 @@ public class DriveSyncService extends Service {
 				this.addNoteToDriveFolder(driveService, localNote);
 			}
 		}
+		
+		Set<Entry<Long, File>> remoteFilesToDelete = remoteFileHash.entrySet();
+		for (Entry<Long, File> anEntry : remoteFilesToDelete) {
+			deleteRemoteFile(driveService, anEntry.getValue());
+		}
 	}
 
 	private void compareAndUpdate(Note localNote, File remoteFile, Drive driveService) throws IOException {
 		if (localNote.getTimestamp() > remoteFile.getModifiedDate().getValue()) {
 			driveService.files().update(remoteFile.getId(), remoteFile, ByteArrayContent.fromString(MIME_TYPE_TEXT_PLAIN, localNote.getBody())).execute();
 		}
+	}
+	
+	private void deleteRemoteFile(Drive driveService, File file) throws IOException {
+		driveService.files().trash(file.getId()).execute();
 	}
 }

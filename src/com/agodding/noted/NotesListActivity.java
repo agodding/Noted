@@ -26,14 +26,13 @@ import android.widget.Toast;
 
 import com.agodding.noted.model.Note;
 import com.agodding.noted.persistence.DBManager;
-import com.agodding.noteds.view.NoteListAdapter;
+import com.agodding.noted.view.NoteListAdapter;
 
 public class NotesListActivity extends Activity {
 
 	private String searchQuery = null;
 	private ListView listView;
 
-	/** Called when the activity is first created. */
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -56,7 +55,6 @@ public class NotesListActivity extends Activity {
 			SearchView searchView = (SearchView) menu.findItem(R.id.searchItem).getActionView();
 			searchView.setSearchableInfo(searchManager.getSearchableInfo(getComponentName()));
 		}
-
 		return true;
 	}
 
@@ -73,7 +71,6 @@ public class NotesListActivity extends Activity {
 			startActivity(new Intent(this, SettingsActivity.class));
 			break;
 		}
-
 		return true;
 	}
 

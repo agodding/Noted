@@ -97,10 +97,10 @@ public class SettingsActivity extends PreferenceActivity {
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
-		case (android.R.id.home): {
-			this.finish();
-			return true;
-		}
+			case (android.R.id.home):
+				overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.fade_out);
+				this.finish();
+				return true;
 		}
 		return super.onOptionsItemSelected(item);
 	}
