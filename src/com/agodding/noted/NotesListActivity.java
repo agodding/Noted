@@ -205,7 +205,4 @@ public class NotesListActivity extends Activity {
 			adapter.setItemChecked(position);
 		}
 	}
-
-	// Google Drive
-	// http://www.youtube.com/watch?v=xRGyzqD-vRg&feature=plcp
 }

@@ -65,7 +65,7 @@ public class SettingsActivity extends PreferenceActivity {
 		LocalBroadcastManager.getInstance(this).registerReceiver(messageReceiver,
 				new IntentFilter(SYNC_SUCCESS));
 
-		// Every time this activity becomes visible, let's check if the user
+		// Each time this activity becomes visible, let's check if the user
 		// should be shown the backup option
 		PreferenceCategory backupCategory = (PreferenceCategory) findPreference("backup");
 		int responseCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
@@ -82,6 +82,8 @@ public class SettingsActivity extends PreferenceActivity {
 				if (((Boolean) newValue) == true) {
 					chooseAccount();
 					return false;
+				} else {
+					getSharedPreferences(SettingsActivity.PREFERENCES_NAME, MODE_PRIVATE).edit().remove(DriveSyncService.PREFERENCE_AUTH_TOKEN).commit();
 				}
 				return true;
 			}

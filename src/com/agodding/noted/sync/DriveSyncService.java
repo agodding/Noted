@@ -35,7 +35,7 @@ public class DriveSyncService extends Service {
 
 	private static final String MIME_TYPE_TEXT_PLAIN = "text/plain";
 	private static final String PREFERENCE_MYNOTES_FOLDER_ID = "mynotes_folder_id";
-	private static final String PREFERENCE_AUTH_TOKEN= "auth_token";
+	public static final String PREFERENCE_AUTH_TOKEN= "auth_token";
 	private static final String DRIVE_FOLDER_NAME = "Noted";
 	public static String EXTRA_ACCOUNT_NAME = "account_name";
 	private static final String DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
@@ -136,6 +136,7 @@ public class DriveSyncService extends Service {
 						reconcileFiles(driveFolder, driveService);
 					}
 				} catch (IOException e) {
+					//TODO: handle 401, 403, 404
 					e.printStackTrace();
 				}
 				stopSelf();
