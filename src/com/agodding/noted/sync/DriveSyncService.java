@@ -1,6 +1,9 @@
 package com.agodding.noted.sync;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -22,9 +25,11 @@ import com.google.android.gms.auth.GoogleAuthUtil;
 import com.google.android.gms.auth.UserRecoverableAuthException;
 import com.google.api.client.extensions.android.http.AndroidHttp;
 import com.google.api.client.http.ByteArrayContent;
+import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpExecuteInterceptor;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestInitializer;
+import com.google.api.client.http.HttpResponse;
 import com.google.api.client.json.jackson.JacksonFactory;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.File;
@@ -35,7 +40,7 @@ public class DriveSyncService extends Service {
 
 	private static final String MIME_TYPE_TEXT_PLAIN = "text/plain";
 	private static final String PREFERENCE_MYNOTES_FOLDER_ID = "mynotes_folder_id";
-	public static final String PREFERENCE_AUTH_TOKEN= "auth_token";
+	public static final String PREFERENCE_AUTH_TOKEN = "auth_token";
 	private static final String DRIVE_FOLDER_NAME = "Noted";
 	public static String EXTRA_ACCOUNT_NAME = "account_name";
 	private static final String DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
@@ -57,19 +62,22 @@ public class DriveSyncService extends Service {
 	}
 
 	public void getAuthToken() {
-		authToken = getSharedPreferences(SettingsActivity.PREFERENCES_NAME, MODE_PRIVATE).getString(PREFERENCE_AUTH_TOKEN, null);
+		authToken =
+				getSharedPreferences(SettingsActivity.PREFERENCES_NAME, MODE_PRIVATE).getString(
+						PREFERENCE_AUTH_TOKEN, null);
 		if (authToken != null) {
 			handleAuthToken();
 			return;
 		}
-		
+
 		new Thread(new Runnable() {
 			public void run() {
 				try {
 					authToken =
 							GoogleAuthUtil.getToken(DriveSyncService.this, accountName, "oauth2:"
 									+ DRIVE_SCOPE);
-					getSharedPreferences(SettingsActivity.PREFERENCES_NAME, MODE_PRIVATE).edit().putString(PREFERENCE_AUTH_TOKEN, authToken).commit();
+					getSharedPreferences(SettingsActivity.PREFERENCES_NAME, MODE_PRIVATE).edit()
+							.putString(PREFERENCE_AUTH_TOKEN, authToken).commit();
 					handleAuthToken();
 				} catch (IOException e) {
 					e.printStackTrace();
@@ -95,10 +103,11 @@ public class DriveSyncService extends Service {
 	}
 
 	private void handleAuthToken() {
-		LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(new Intent(SettingsActivity.SYNC_SUCCESS));
+		LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(
+				new Intent(SettingsActivity.SYNC_SUCCESS));
 		syncNotes();
 	}
-	
+
 	private Drive getDriveService() {
 		return new Drive.Builder(
 				AndroidHttp.newCompatibleTransport(),
@@ -110,7 +119,8 @@ public class DriveSyncService extends Service {
 								new HttpExecuteInterceptor() {
 									@Override
 									public void intercept(HttpRequest request) throws IOException {
-										request.getHeaders().setAuthorization("Bearer " + authToken);
+										request.getHeaders()
+												.setAuthorization("Bearer " + authToken);
 									}
 								});
 					}
@@ -122,47 +132,52 @@ public class DriveSyncService extends Service {
 			public void run() {
 				Drive driveService = getDriveService();
 				try {
-					String folderID = getSharedPreferences(SettingsActivity.PREFERENCES_NAME, MODE_PRIVATE).getString(PREFERENCE_MYNOTES_FOLDER_ID, null);
+					String folderID =
+							getSharedPreferences(SettingsActivity.PREFERENCES_NAME, MODE_PRIVATE)
+									.getString(PREFERENCE_MYNOTES_FOLDER_ID, null);
 					if (folderID == null) {
 						File driveFolder = findDriveFolderByName(driveService);
 						if (driveFolder == null) {
 							createMyNotesFolder(driveService);
 							addAllLocalFilesToDriveFolder(driveService);
 						} else {
-							//TODO: reinstalling, so download all remote files and persist them locally
+							// TODO: reinstalling, so download all remote files
+							// and persist them locally
 						}
 					} else {
 						File driveFolder = driveService.files().get(folderID).execute();
 						reconcileFiles(driveFolder, driveService);
 					}
 				} catch (IOException e) {
-					//TODO: handle 401, 403, 404
+					// TODO: handle 401, 403, 404
 					e.printStackTrace();
 				}
 				stopSelf();
 			}
 		}).start();
 	}
-	
+
 	private File findDriveFolderByName(Drive driveService) throws IOException {
-		FileList fileList = driveService.files().list().setQ("title = '" + DRIVE_FOLDER_NAME + "'").execute();
-		if (fileList.getItems().size() == 0){
+		FileList fileList =
+				driveService.files().list().setQ("title = '" + DRIVE_FOLDER_NAME + "'").execute();
+		if (fileList.getItems().size() == 0) {
 			return null;
 		} else {
 			File driveFolder = fileList.getItems().get(0);
 			return driveFolder;
 		}
 	}
-	
+
 	private void createMyNotesFolder(Drive driveService) throws IOException {
 		File aFile = new File();
 		aFile.setMimeType(DRIVE_FOLDER_MIME_TYPE);
 		aFile.setTitle(DRIVE_FOLDER_NAME);
 		File driveFolder = driveService.files().insert(aFile).execute();
-		SharedPreferences prefs = getSharedPreferences(SettingsActivity.PREFERENCES_NAME, MODE_PRIVATE);
+		SharedPreferences prefs =
+				getSharedPreferences(SettingsActivity.PREFERENCES_NAME, MODE_PRIVATE);
 		prefs.edit().putString(PREFERENCE_MYNOTES_FOLDER_ID, driveFolder.getId()).commit();
 	}
-	
+
 	private void addAllLocalFilesToDriveFolder(Drive driveService) throws IOException {
 		DBManager db = DBManager.getInstance(this);
 		ArrayList<Note> notes = db.getNotes();
@@ -170,31 +185,35 @@ public class DriveSyncService extends Service {
 			addNoteToDriveFolder(driveService, aNote);
 		}
 	}
-	
+
 	private void addNoteToDriveFolder(Drive driveService, Note aNote) throws IOException {
 		File newFile = new File();
 		newFile.setTitle(aNote.getTitle());
 		newFile.setMimeType(MIME_TYPE_TEXT_PLAIN);
 		newFile.setDescription(Long.toString(aNote.getId()));
-		
-		String folderID = getSharedPreferences(SettingsActivity.PREFERENCES_NAME, MODE_PRIVATE).getString(PREFERENCE_MYNOTES_FOLDER_ID, null);
+
+		String folderID =
+				getSharedPreferences(SettingsActivity.PREFERENCES_NAME, MODE_PRIVATE).getString(
+						PREFERENCE_MYNOTES_FOLDER_ID, null);
 		newFile.setParents(Arrays.asList(new ParentReference().setId(folderID)));
-		driveService.files().insert(newFile, ByteArrayContent.fromString(MIME_TYPE_TEXT_PLAIN, aNote.getBody())).execute();
+		driveService
+				.files()
+				.insert(newFile, ByteArrayContent.fromString(MIME_TYPE_TEXT_PLAIN, aNote.getBody()))
+				.execute();
 	}
-	
+
 	private void reconcileFiles(File driveFolder, Drive driveService) throws IOException {
-		String folderID = getSharedPreferences(SettingsActivity.PREFERENCES_NAME, MODE_PRIVATE).getString(PREFERENCE_MYNOTES_FOLDER_ID, null);
-		FileList fileList = driveService.files().list().setQ("'" + folderID + "' in parents").execute();
-		List<File> remoteFiles = fileList.getItems();
+		List<File> remoteFiles = getRemoteFiles(driveService);
 		HashMap<Long, File> remoteFileHash = new HashMap<Long, File>();
 		for (File aRemoteFile : remoteFiles) {
 			try {
 				remoteFileHash.put(Long.valueOf(aRemoteFile.getDescription()), aRemoteFile);
 			} catch (NumberFormatException e) {
-				//There was no ID associated with the remote file. Move on to the next one
+				// There was no ID associated with the remote file. Move on to
+				// the next one
 			}
 		}
-		
+
 		DBManager db = DBManager.getInstance(this);
 		ArrayList<Note> localNotes = db.getNotes();
 		for (Note localNote : localNotes) {
@@ -205,20 +224,64 @@ public class DriveSyncService extends Service {
 				this.addNoteToDriveFolder(driveService, localNote);
 			}
 		}
-		
+
 		Set<Entry<Long, File>> remoteFilesToDelete = remoteFileHash.entrySet();
 		for (Entry<Long, File> anEntry : remoteFilesToDelete) {
 			deleteRemoteFile(driveService, anEntry.getValue());
 		}
 	}
 
-	private void compareAndUpdate(Note localNote, File remoteFile, Drive driveService) throws IOException {
+	private List<File> getRemoteFiles(Drive driveService) throws IOException {
+		String folderID =
+				getSharedPreferences(SettingsActivity.PREFERENCES_NAME, MODE_PRIVATE).getString(
+						PREFERENCE_MYNOTES_FOLDER_ID, null);
+		FileList fileList =
+				driveService.files().list().setQ("'" + folderID + "' in parents").execute();
+		List<File> remoteFiles = fileList.getItems();
+		return remoteFiles;
+	}
+
+	private void compareAndUpdate(Note localNote, File remoteFile, Drive driveService)
+			throws IOException {
 		if (localNote.getTimestamp() > remoteFile.getModifiedDate().getValue()) {
-			driveService.files().update(remoteFile.getId(), remoteFile, ByteArrayContent.fromString(MIME_TYPE_TEXT_PLAIN, localNote.getBody())).execute();
+			driveService
+					.files()
+					.update(remoteFile.getId(), remoteFile,
+							ByteArrayContent.fromString(MIME_TYPE_TEXT_PLAIN, localNote.getBody()))
+					.execute();
 		}
 	}
-	
+
 	private void deleteRemoteFile(Drive driveService, File file) throws IOException {
 		driveService.files().trash(file.getId()).execute();
+	}
+
+	private void downloadRemoteFile(Drive driveService, File remoteFile) {
+		try {
+			HttpResponse resp = driveService.getRequestFactory()
+							.buildGetRequest(new GenericUrl(remoteFile.getDownloadUrl()))
+							.execute();
+			InputStream is = resp.getContent();
+			BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+			String contents = "";
+			String nextLine = reader.readLine();
+			while (nextLine != null) {
+				contents += nextLine;
+				nextLine = reader.readLine();
+			}
+			
+			Note downloadedNote = new Note();
+			downloadedNote.setBody(contents);
+			downloadedNote.setTitle(remoteFile.getTitle());
+			DBManager db = DBManager.getInstance(this);
+			db.createNote(downloadedNote);
+			
+			//Update the note ID stored in the description of the remote File
+			compareAndUpdate(downloadedNote, remoteFile, driveService);
+			
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
 	}
 }
